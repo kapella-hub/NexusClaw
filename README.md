@@ -146,6 +146,51 @@ nexusclaw sentry rules
 nexusclaw sentry budget
 ```
 
+## Deploying on Ubuntu
+
+### Option 1: Docker (easiest)
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER  # then re-login
+
+git clone https://github.com/kapella-hub/NexusClaw.git
+cd NexusClaw
+cp .env.example .env
+docker compose -f deployments/docker-compose.yaml up -d
+```
+
+### Option 2: Native
+
+```bash
+# Install Go 1.25+
+wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+
+# Install PostgreSQL and Redis
+sudo apt install -y postgresql redis-server
+
+# Set up the database
+sudo -u postgres psql -c "CREATE USER nexusclaw WITH PASSWORD 'nexusclaw';"
+sudo -u postgres psql -c "CREATE DATABASE nexusclaw OWNER nexusclaw;"
+
+# Clone, build, run
+git clone https://github.com/kapella-hub/NexusClaw.git
+cd NexusClaw
+cp .env.example .env
+bash scripts/migrate.sh
+go build -o bin/nexusclaw ./cmd/nexusclaw
+./bin/nexusclaw serve
+```
+
+Verify with:
+
+```bash
+curl http://localhost:8080/healthz
+# {"status":"ok"}
+```
+
 ## Architecture
 
 ```
