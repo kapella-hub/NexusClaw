@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS budget_caps;
+DROP TABLE IF EXISTS sentry_rules;
+DROP TABLE IF EXISTS audit_log;

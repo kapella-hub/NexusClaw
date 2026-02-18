@@ -1,0 +1,72 @@
+openapi: "3.1.0"
+info:
+  title: NexusClaw API
+  version: 0.1.0
+  description: Unified gateway for MCP server management, credential vaulting, and AI firewall.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        "200":
+          description: Ready
+
+  /api/v1/pass/sessions:
+    post:
+      summary: Create session (login)
+      tags: [Pass]
+      responses:
+        "501":
+          description: Not implemented
+
+  /api/v1/pass/vault:
+    get:
+      summary: List vault entries
+      tags: [Pass]
+      responses:
+        "501":
+          description: Not implemented
+
+  /api/v1/nodes/servers:
+    get:
+      summary: List MCP servers
+      tags: [Nodes]
+      responses:
+        "501":
+          description: Not implemented
+
+  /api/v1/sentry/audit:
+    get:
+      summary: List audit entries
+      tags: [Sentry]
+      responses:
+        "501":
+          description: Not implemented
+
+  /api/v1/sentry/rules:
+    get:
+      summary: List sentry rules
+      tags: [Sentry]
+      responses:
+        "501":
+          description: Not implemented
+
+  /api/v1/sentry/budget:
+    get:
+      summary: Get budget status
+      tags: [Sentry]
+      responses:
+        "501":
+          description: Not implemented

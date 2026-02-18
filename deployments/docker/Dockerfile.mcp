@@ -1,0 +1,5 @@
+FROM node:20-alpine
+WORKDIR /mcp
+RUN apk add --no-cache tini
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]
