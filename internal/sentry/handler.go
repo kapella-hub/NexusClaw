@@ -130,7 +130,7 @@ func (h *Handler) GetBudget(w http.ResponseWriter, r *http.Request) {
 	budget, err := h.Service.GetBudget(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			respond.JSON(w, http.StatusOK, map[string]int64{"max_tokens": 0, "used_tokens": 0})
+			respond.Error(w, http.StatusNotFound, "budget not found")
 			return
 		}
 		respond.Error(w, http.StatusInternalServerError, "failed to get budget")
