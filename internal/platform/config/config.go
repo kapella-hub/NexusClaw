@@ -72,7 +72,7 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("redis.addr", "localhost:6379")
 	v.SetDefault("redis.password", "")
 	v.SetDefault("redis.db", 0)
-	v.SetDefault("auth.token_secret", "")
+	v.SetDefault("auth.token_secret", "nexusclaw-fallback-secret-development-only")
 	v.SetDefault("auth.token_expiry", 24*time.Hour)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
@@ -99,6 +99,11 @@ func Load(path string) (*Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
+
+	// Strip potential trailing whitespace (like \r from Windows CRLF in docker-compose)
+	cfg.Database.DSN = strings.TrimSpace(cfg.Database.DSN)
+	cfg.Redis.Addr = strings.TrimSpace(cfg.Redis.Addr)
+	cfg.Redis.Password = strings.TrimSpace(cfg.Redis.Password)
 
 	return &cfg, nil
 }

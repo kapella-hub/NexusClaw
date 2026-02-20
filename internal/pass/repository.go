@@ -10,6 +10,9 @@ import (
 // ErrNotFound is returned when a requested entity does not exist.
 var ErrNotFound = errors.New("not found")
 
+// ErrAlreadyExists is returned when a unique constraint is violated.
+var ErrAlreadyExists = errors.New("already exists")
+
 // Repository defines persistence operations for sessions and vault entries.
 type Repository interface {
 	CreateSession(ctx context.Context, session *Session) error

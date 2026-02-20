@@ -24,6 +24,7 @@ func New(cfg *config.Config, logger *slog.Logger, pool *pgxpool.Pool) http.Handl
 	r := chi.NewRouter()
 
 	// Global middleware
+	r.Use(mw.CORS)
 	r.Use(chimw.RealIP)
 	r.Use(mw.RequestID)
 	r.Use(mw.Logging)

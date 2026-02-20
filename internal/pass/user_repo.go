@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -46,7 +47,14 @@ func (r *PgUserRepository) CreateUser(ctx context.Context, user *User) error {
 		 VALUES ($1, $2, $3, $4, $5)`,
 		user.ID, user.Email, user.PasswordHash, user.CreatedAt, user.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *PgUserRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {

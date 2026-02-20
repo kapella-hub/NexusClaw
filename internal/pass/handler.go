@@ -55,6 +55,10 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.Service.Register(r.Context(), req.Email, req.Password)
 	if err != nil {
+		if errors.Is(err, ErrAlreadyExists) {
+			respond.Error(w, http.StatusConflict, "email already registered")
+			return
+		}
 		respond.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -192,4 +196,3 @@ func (h *Handler) RelayAuth(w http.ResponseWriter, r *http.Request) {
 		"access_token": cred.AccessToken,
 	})
 }
-

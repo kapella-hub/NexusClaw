@@ -8,11 +8,23 @@ services:
     environment:
       - NEXUSCLAW_DATABASE_DSN=postgres://nexusclaw:nexusclaw@postgres:5432/nexusclaw?sslmode=disable
       - NEXUSCLAW_REDIS_ADDR=redis:6379
+      - NEXUSCLAW_AUTH_TOKEN_SECRET=change-me-in-production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://app:8080
+    depends_on:
+      - app
 
   postgres:
     image: postgres:16-alpine
