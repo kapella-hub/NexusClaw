@@ -1,0 +1,18 @@
+﻿?   	github.com/kapella-hub/NexusClaw/cmd/nexusclaw	[no test files]
+?   	github.com/kapella-hub/NexusClaw/internal/app	[no test files]
+?   	github.com/kapella-hub/NexusClaw/internal/cli	[no test files]
+ok  	github.com/kapella-hub/NexusClaw/internal/nodes	(cached)
+ok  	github.com/kapella-hub/NexusClaw/internal/pass	(cached)
+?   	github.com/kapella-hub/NexusClaw/internal/platform/config	[no test files]
+ok  	github.com/kapella-hub/NexusClaw/internal/platform/crypto	(cached)
+?   	github.com/kapella-hub/NexusClaw/internal/platform/database	[no test files]
+ok  	github.com/kapella-hub/NexusClaw/internal/platform/middleware	(cached)
+ok  	github.com/kapella-hub/NexusClaw/internal/platform/respond	(cached)
+?   	github.com/kapella-hub/NexusClaw/internal/platform/server	[no test files]
+--- FAIL: TestGetBudgetHandlerDefaultWhenNotFound (0.00s)
+    handler_test.go:278: expected 200, got 404: {"error":"budget not found"}
+FAIL
+FAIL	github.com/kapella-hub/NexusClaw/internal/sentry	0.260s
+ok  	github.com/kapella-hub/NexusClaw/pkg/mcpsdk	(cached)
+ok  	github.com/kapella-hub/NexusClaw/pkg/sentryapi	(cached)
+FAIL

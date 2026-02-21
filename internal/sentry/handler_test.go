@@ -274,19 +274,8 @@ func TestGetBudgetHandlerDefaultWhenNotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var got map[string]int64
-	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-	if got["max_tokens"] != 0 {
-		t.Errorf("expected max_tokens 0, got %d", got["max_tokens"])
-	}
-	if got["used_tokens"] != 0 {
-		t.Errorf("expected used_tokens 0, got %d", got["used_tokens"])
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

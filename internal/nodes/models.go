@@ -15,6 +15,8 @@ type MCPServer struct {
 	Status      ServerStatus   `json:"status"`
 	Config      map[string]any `json:"config"`
 	ContainerID string         `json:"container_id,omitempty"`
+	Tools       []any          `json:"tools,omitempty"`
+	Resources   []any          `json:"resources,omitempty"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 }

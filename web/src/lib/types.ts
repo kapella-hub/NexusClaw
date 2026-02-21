@@ -37,6 +37,8 @@ export interface MCPServer {
   status: ServerStatus;
   config: Record<string, unknown>;
   container_id?: string;
+  tools?: any[];
+  resources?: any[];
   created_at: string;
   updated_at: string;
 }

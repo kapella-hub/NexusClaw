@@ -22,7 +22,7 @@ func NewPgRepository(pool *pgxpool.Pool) *PgRepository {
 
 func (r *PgRepository) ListServers(ctx context.Context, ownerID uuid.UUID) ([]MCPServer, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, owner_id, name, image, status, config, container_id, created_at, updated_at
+		`SELECT id, owner_id, name, image, status, config, container_id, tools, resources, created_at, updated_at
 		 FROM mcp_servers WHERE owner_id = $1
 		 ORDER BY created_at DESC`,
 		ownerID,
@@ -35,12 +35,22 @@ func (r *PgRepository) ListServers(ctx context.Context, ownerID uuid.UUID) ([]MC
 	var servers []MCPServer
 	for rows.Next() {
 		var s MCPServer
-		var configBytes []byte
-		if err := rows.Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		var configBytes, toolsBytes, resourcesBytes []byte
+		if err := rows.Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &toolsBytes, &resourcesBytes, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if configBytes != nil {
 			if err := json.Unmarshal(configBytes, &s.Config); err != nil {
+				return nil, err
+			}
+		}
+		if toolsBytes != nil {
+			if err := json.Unmarshal(toolsBytes, &s.Tools); err != nil {
+				return nil, err
+			}
+		}
+		if resourcesBytes != nil {
+			if err := json.Unmarshal(resourcesBytes, &s.Resources); err != nil {
 				return nil, err
 			}
 		}
@@ -59,12 +69,12 @@ func (r *PgRepository) ListServers(ctx context.Context, ownerID uuid.UUID) ([]MC
 
 func (r *PgRepository) GetServer(ctx context.Context, id uuid.UUID) (*MCPServer, error) {
 	var s MCPServer
-	var configBytes []byte
+	var configBytes, toolsBytes, resourcesBytes []byte
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, owner_id, name, image, status, config, container_id, created_at, updated_at
+		`SELECT id, owner_id, name, image, status, config, container_id, tools, resources, created_at, updated_at
 		 FROM mcp_servers WHERE id = $1`,
 		id,
-	).Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &s.CreatedAt, &s.UpdatedAt)
+	).Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &toolsBytes, &resourcesBytes, &s.CreatedAt, &s.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -76,33 +86,71 @@ func (r *PgRepository) GetServer(ctx context.Context, id uuid.UUID) (*MCPServer,
 			return nil, err
 		}
 	}
+	if toolsBytes != nil {
+		if err := json.Unmarshal(toolsBytes, &s.Tools); err != nil {
+			return nil, err
+		}
+	}
+	if resourcesBytes != nil {
+		if err := json.Unmarshal(resourcesBytes, &s.Resources); err != nil {
+			return nil, err
+		}
+	}
 	return &s, nil
 }
 
 func (r *PgRepository) CreateServer(ctx context.Context, server *MCPServer) error {
+	if server.Tools == nil {
+		server.Tools = []any{}
+	}
+	if server.Resources == nil {
+		server.Resources = []any{}
+	}
 	configBytes, err := json.Marshal(server.Config)
+	if err != nil {
+		return err
+	}
+	toolsBytes, err := json.Marshal(server.Tools)
+	if err != nil {
+		return err
+	}
+	resourcesBytes, err := json.Marshal(server.Resources)
 	if err != nil {
 		return err
 	}
 
 	_, err = r.pool.Exec(ctx,
-		`INSERT INTO mcp_servers (id, owner_id, name, image, status, config, container_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		server.ID, server.OwnerID, server.Name, server.Image, server.Status, configBytes, server.ContainerID, server.CreatedAt, server.UpdatedAt,
+		`INSERT INTO mcp_servers (id, owner_id, name, image, status, config, container_id, tools, resources, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		server.ID, server.OwnerID, server.Name, server.Image, server.Status, configBytes, server.ContainerID, toolsBytes, resourcesBytes, server.CreatedAt, server.UpdatedAt,
 	)
 	return err
 }
 
 func (r *PgRepository) UpdateServer(ctx context.Context, server *MCPServer) error {
+	if server.Tools == nil {
+		server.Tools = []any{}
+	}
+	if server.Resources == nil {
+		server.Resources = []any{}
+	}
 	configBytes, err := json.Marshal(server.Config)
+	if err != nil {
+		return err
+	}
+	toolsBytes, err := json.Marshal(server.Tools)
+	if err != nil {
+		return err
+	}
+	resourcesBytes, err := json.Marshal(server.Resources)
 	if err != nil {
 		return err
 	}
 
 	tag, err := r.pool.Exec(ctx,
-		`UPDATE mcp_servers SET name = $2, image = $3, status = $4, config = $5, container_id = $6, updated_at = $7
+		`UPDATE mcp_servers SET name = $2, image = $3, status = $4, config = $5, container_id = $6, tools = $7, resources = $8, updated_at = $9
 		 WHERE id = $1`,
-		server.ID, server.Name, server.Image, server.Status, configBytes, server.ContainerID, server.UpdatedAt,
+		server.ID, server.Name, server.Image, server.Status, configBytes, server.ContainerID, toolsBytes, resourcesBytes, server.UpdatedAt,
 	)
 	if err != nil {
 		return err
@@ -130,12 +178,12 @@ func (r *PgRepository) SearchServers(ctx context.Context, query string) ([]MCPSe
 
 	if query == "" {
 		rows, err = r.pool.Query(ctx,
-			`SELECT id, owner_id, name, image, status, config, container_id, created_at, updated_at
+			`SELECT id, owner_id, name, image, status, config, container_id, tools, resources, created_at, updated_at
 			 FROM mcp_servers ORDER BY created_at DESC`)
 	} else {
 		pattern := "%" + query + "%"
 		rows, err = r.pool.Query(ctx,
-			`SELECT id, owner_id, name, image, status, config, container_id, created_at, updated_at
+			`SELECT id, owner_id, name, image, status, config, container_id, tools, resources, created_at, updated_at
 			 FROM mcp_servers WHERE name ILIKE $1 OR image ILIKE $1
 			 ORDER BY created_at DESC`, pattern)
 	}
@@ -147,12 +195,22 @@ func (r *PgRepository) SearchServers(ctx context.Context, query string) ([]MCPSe
 	var servers []MCPServer
 	for rows.Next() {
 		var s MCPServer
-		var configBytes []byte
-		if err := rows.Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		var configBytes, toolsBytes, resourcesBytes []byte
+		if err := rows.Scan(&s.ID, &s.OwnerID, &s.Name, &s.Image, &s.Status, &configBytes, &s.ContainerID, &toolsBytes, &resourcesBytes, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if configBytes != nil {
 			if err := json.Unmarshal(configBytes, &s.Config); err != nil {
+				return nil, err
+			}
+		}
+		if toolsBytes != nil {
+			if err := json.Unmarshal(toolsBytes, &s.Tools); err != nil {
+				return nil, err
+			}
+		}
+		if resourcesBytes != nil {
+			if err := json.Unmarshal(resourcesBytes, &s.Resources); err != nil {
 				return nil, err
 			}
 		}

@@ -19,9 +19,10 @@ var wsUpgrader = websocket.Upgrader{
 
 // Handler exposes HTTP endpoints for the Managed MCP module.
 type Handler struct {
-	Service  Service
-	Registry Registry
-	AuthMW   func(http.Handler) http.Handler
+	Service     Service
+	Registry    Registry
+	AuthMW      func(http.Handler) http.Handler
+	RateLimiter *RateLimiter
 }
 
 // Routes returns a chi.Router with all MCP server routes mounted.
@@ -220,6 +221,12 @@ func (h *Handler) ConnectWebSocket(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
+
+			if h.RateLimiter != nil && !h.RateLimiter.Allow(server.ID) {
+				clientConn.WriteMessage(mt, []byte(`{"jsonrpc":"2.0","error":{"code":-32005,"message":"Rate limit exceeded"},"id":null}`))
+				continue
+			}
+
 			if err := backendConn.WriteMessage(mt, msg); err != nil {
 				return
 			}

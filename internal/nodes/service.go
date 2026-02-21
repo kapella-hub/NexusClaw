@@ -3,10 +3,12 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
 // Service defines the Managed MCP business logic.
@@ -85,6 +87,13 @@ func (s *service) StartServer(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("updating server: %w", err)
 	}
 
+	go func() {
+		time.Sleep(2 * time.Second)
+		if err := s.SyncCapabilities(context.Background(), id); err != nil {
+			slog.Error("failed to sync capabilities", "server_id", id, "error", err)
+		}
+	}()
+
 	return nil
 }
 
@@ -128,4 +137,88 @@ func (s *service) ConnectWebSocket(ctx context.Context, serverID uuid.UUID, w ht
 	}
 	// Validation only; the handler layer performs the WebSocket upgrade.
 	return nil
+}
+
+func (s *service) SyncCapabilities(ctx context.Context, id uuid.UUID) error {
+	server, err := s.repo.GetServer(ctx, id)
+	if err != nil {
+		return err
+	}
+	backendPort := "8080"
+	if p, ok := server.Config["ws_port"].(string); ok {
+		backendPort = p
+	}
+	backendURL := "ws://localhost:" + backendPort
+
+	// Try dialing with retries since container might take a second to start
+	var backendConn *websocket.Conn
+	for i := 0; i < 5; i++ {
+		backendConn, _, err = websocket.DefaultDialer.Dial(backendURL, nil)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to connect to mcp server for sync: %v", err)
+	}
+	defer backendConn.Close()
+
+	// Send tools/list request
+	err = backendConn.WriteJSON(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      "sync-tools",
+		"method":  "tools/list",
+	})
+	if err != nil {
+		return err
+	}
+
+	// Read response (best effort, read next 5 messages max looking for ours)
+	var toolsResp struct {
+		ID     string `json:"id"`
+		Result struct {
+			Tools []any `json:"tools"`
+		} `json:"result"`
+	}
+	for i := 0; i < 5; i++ {
+		backendConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		err = backendConn.ReadJSON(&toolsResp)
+		if err == nil && toolsResp.ID == "sync-tools" {
+			if toolsResp.Result.Tools != nil {
+				server.Tools = toolsResp.Result.Tools
+			}
+			break
+		}
+	}
+
+	// Send resources/list request
+	err = backendConn.WriteJSON(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      "sync-resources",
+		"method":  "resources/list",
+	})
+	if err != nil {
+		return err
+	}
+
+	var resResp struct {
+		ID     string `json:"id"`
+		Result struct {
+			Resources []any `json:"resources"`
+		} `json:"result"`
+	}
+	for i := 0; i < 5; i++ {
+		backendConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		err = backendConn.ReadJSON(&resResp)
+		if err == nil && resResp.ID == "sync-resources" {
+			if resResp.Result.Resources != nil {
+				server.Resources = resResp.Result.Resources
+			}
+			break
+		}
+	}
+
+	server.UpdatedAt = time.Now()
+	return s.repo.UpdateServer(ctx, server)
 }

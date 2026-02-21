@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Server } from "lucide-react";
 import type { MCPServer } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
+import { toast } from "sonner";
 import {
   createServer,
   deleteServer,
@@ -27,6 +28,37 @@ import {
 } from "@/components/ui/dialog";
 import { ServerCard } from "@/components/server-card";
 
+const SERVER_TEMPLATES = [
+  {
+    id: "custom",
+    name: "Custom Server",
+    image: "",
+    config: "{}",
+    description: "Provide your own Docker image and config",
+  },
+  {
+    id: "sqlite",
+    name: "SQLite Integration",
+    image: "mcp/sqlite:latest",
+    config: '{\n  "db_path": "/data/mcp.db"\n}',
+    description: "Read and write to a local SQLite database",
+  },
+  {
+    id: "github",
+    name: "GitHub Plugin",
+    image: "mcp/github:latest",
+    config: '{\n  "github_token": "YOUR_TOKEN_HERE"\n}',
+    description: "Interact with GitHub APIs",
+  },
+  {
+    id: "filesystem",
+    name: "Local Filesystem",
+    image: "mcp/filesystem:latest",
+    config: '{\n  "allowed_dirs": ["/data"]\n}',
+    description: "Read and write files in allowed directories",
+  },
+];
+
 export default function ServersPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -34,7 +66,6 @@ export default function ServersPage() {
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState("");
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -43,17 +74,28 @@ export default function ServersPage() {
   const [formConfig, setFormConfig] = useState("");
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+  const [template, setTemplate] = useState("custom");
+
+  function handleTemplateChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value;
+    setTemplate(value);
+    const tpl = SERVER_TEMPLATES.find(t => t.id === value);
+    if (tpl && value !== "custom") {
+      if (!formName) setFormName(tpl.name);
+      setFormImage(tpl.image);
+      setFormConfig(tpl.config);
+    }
+  }
 
   const fetchServers = useCallback(async () => {
     try {
       const data = await listServers();
       setServers(data);
-      setError("");
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to load servers.");
+        toast.error("Failed to load servers.");
       }
     } finally {
       setLoading(false);
@@ -72,7 +114,6 @@ export default function ServersPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    setFormError("");
     setFormLoading(true);
 
     let config: Record<string, unknown> = {};
@@ -80,7 +121,7 @@ export default function ServersPage() {
       try {
         config = JSON.parse(formConfig);
       } catch {
-        setFormError("Config must be valid JSON.");
+        toast.error("Config must be valid JSON.");
         setFormLoading(false);
         return;
       }
@@ -92,12 +133,14 @@ export default function ServersPage() {
       setFormName("");
       setFormImage("");
       setFormConfig("");
+      setTemplate("custom");
+      toast.success("Server registered successfully!");
       await fetchServers();
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setFormError(err.message);
+        toast.error(err.message);
       } else {
-        setFormError("Failed to create server.");
+        toast.error("Failed to register server.");
       }
     } finally {
       setFormLoading(false);
@@ -108,12 +151,13 @@ export default function ServersPage() {
     setActionLoading(true);
     try {
       await startServer(id);
+      toast.success("Server started!");
       await fetchServers();
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to start server.");
+        toast.error("Failed to start server.");
       }
     } finally {
       setActionLoading(false);
@@ -124,12 +168,13 @@ export default function ServersPage() {
     setActionLoading(true);
     try {
       await stopServer(id);
+      toast.success("Server stopped!");
       await fetchServers();
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to stop server.");
+        toast.error("Failed to stop server.");
       }
     } finally {
       setActionLoading(false);
@@ -140,12 +185,13 @@ export default function ServersPage() {
     setActionLoading(true);
     try {
       await deleteServer(id);
+      toast.success("Server removed!");
       await fetchServers();
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to delete server.");
+        toast.error("Failed to remove server.");
       }
     } finally {
       setActionLoading(false);
@@ -181,11 +227,21 @@ export default function ServersPage() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
-              {formError && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {formError}
-                </p>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="server-template">Template</Label>
+                <select
+                  id="server-template"
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={template}
+                  onChange={handleTemplateChange}
+                >
+                  {SERVER_TEMPLATES.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} - {tpl.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="server-name">Name</Label>
                 <Input
@@ -226,12 +282,6 @@ export default function ServersPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

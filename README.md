@@ -35,6 +35,8 @@ bash scripts/migrate.sh
 go run ./cmd/nexusclaw serve
 ```
 
+Once running, access the web interface at **http://localhost:3000/login** and the API at **http://localhost:8080**.
+
 ## Development Commands
 
 If you have `make` installed:
@@ -110,6 +112,15 @@ docker compose -f deployments/docker-compose.yaml down
 | DELETE | `/rules/{id}` | Yes | Delete rule |
 | GET | `/budget` | Yes | Get token budget |
 | PUT | `/budget` | Yes | Update token budget |
+
+## Web Interface
+
+NexusClaw comes with a fully-featured, modern Next.js dashboard UI located in the `/web` directory.
+
+### Features
+- **Interactive MCP Inspector:** Test and interact with your MCP servers directly from the Server Details page using a real-time WebSocket connection to execute tools and read resources.
+- **Command Palette:** Instantly navigate to any page by pressing `Ctrl + K` (or `Cmd + K` on Mac).
+- **Dark Mode:** A sleek dark mode toggle for comfortable nighttime viewing with fully animated dashboard components.
 
 ## Public SDKs
 

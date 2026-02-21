@@ -70,7 +70,8 @@ func New(cfg *config.Config, logger *slog.Logger, pool *pgxpool.Pool) http.Handl
 	}
 	nodesSvc := nodes.NewService(nodesRepo, containerMgr)
 	nodesRegistry := nodes.NewRegistry(nodesRepo)
-	nodesHandler := &nodes.Handler{Service: nodesSvc, Registry: nodesRegistry, AuthMW: authMW}
+	nodesLimiter := nodes.NewRateLimiter(5, 10)
+	nodesHandler := &nodes.Handler{Service: nodesSvc, Registry: nodesRegistry, AuthMW: authMW, RateLimiter: nodesLimiter}
 
 	// -- Sentry module --
 	sentryRepo := sentry.NewPgRepository(pool)
